@@ -22,7 +22,7 @@ struct TrackCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, cornerRadius: 16)
+            CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, artworkData: track.artworkData, cornerRadius: 16)
                 .frame(width: size, height: size)
                 .shadow(color: Color(hex: track.colorSeed).opacity(0.3), radius: 12, y: 6)
 

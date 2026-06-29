@@ -42,7 +42,7 @@ struct FavoritesView: View {
     private var header: some View {
         HStack(spacing: 16) {
             ZStack {
-                LinearGradient(colors: [AuraColor.green, AuraColor.blue],
+                LinearGradient(colors: [AuraColor.green, AuraColor.greenBright],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
                 Image(systemName: "heart.fill")
                     .font(.system(size: 40, weight: .bold))

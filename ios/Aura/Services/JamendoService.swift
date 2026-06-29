@@ -35,7 +35,7 @@ nonisolated struct JamendoService {
 
     private static func map(_ j: JTrack) -> Track {
         let genre = j.musicinfo?.tags?.genres?.first?.capitalized ?? "Поп"
-        let seed: UInt = (UInt(j.id) ?? 0) % 2 == 0 ? 0x1DB954 : 0x0A84FF
+        let seed: UInt = (UInt(j.id) ?? 0) % 2 == 0 ? 0x1DB954 : 0x1ED760
         let initials = String(j.artist_name.prefix(2)).uppercased()
         return Track(
             id: "jam_\(j.id)",

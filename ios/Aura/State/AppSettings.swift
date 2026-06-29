@@ -31,7 +31,8 @@ final class AppSettings: ObservableObject {
     /// Reminder time stored as minutes from midnight (default 10:00 = 600).
     @AppStorage("reminderMinutes") var reminderMinutes: Int = 600
     /// Total listening time accumulated, in seconds.
-    @AppStorage("listeningSeconds") var listeningSeconds: Int = 4_530 * 60
+    @AppStorage("listeningSeconds") var listeningSeconds: Int = 0
+    @AppStorage("preferredGenre") private var preferredGenreRaw: String = ""
     /// Stored avatar image as base64 (optional).
     @AppStorage("avatarData") private var avatarBase64: String = ""
 
@@ -69,7 +70,19 @@ final class AppSettings: ObservableObject {
     var favoriteGenre: String {
         let counts = Dictionary(grouping: MusicCatalog.allTracks, by: \.genre)
             .mapValues(\.count)
-        return counts.max(by: { $0.value < $1.value })?.key ?? "Поп"
+        return counts.max(by: { $0.value < $1.value })?.key ?? Genre.pop.rawValue
+    }
+
+    var preferredGenre: Genre? {
+        get { Genre(rawValue: preferredGenreRaw) }
+        set {
+            objectWillChange.send()
+            preferredGenreRaw = newValue?.rawValue ?? ""
+        }
+    }
+
+    var preferredGenreTitle: String {
+        preferredGenre?.rawValue ?? favoriteGenre
     }
 
     var reminderDate: Date {
@@ -90,5 +103,9 @@ final class AppSettings: ObservableObject {
 
     func addListening(seconds: Int) {
         listeningSeconds += seconds
+    }
+
+    func setPreferredGenre(_ genre: Genre?) {
+        preferredGenre = genre
     }
 }

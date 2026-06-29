@@ -24,7 +24,7 @@ struct OnboardingView: View {
 
     private let pages: [OnboardingPage] = [
         OnboardingPage(image: "soundwave_liquid_glass_bg", symbol: "waveform", title: .onb1Title, body: .onb1Body, accent: AuraColor.green),
-        OnboardingPage(image: "soundwave_glass_liquid", symbol: "sparkles", title: .onb2Title, body: .onb2Body, accent: AuraColor.blue),
+        OnboardingPage(image: "soundwave_glass_liquid", symbol: "sparkles", title: .onb2Title, body: .onb2Body, accent: AuraColor.greenBright),
         OnboardingPage(image: "glowing_ribbons_ambient", symbol: "circle.hexagongrid.fill", title: .onb3Title, body: .onb3Body, accent: AuraColor.green)
     ]
 

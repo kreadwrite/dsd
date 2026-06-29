@@ -15,7 +15,7 @@ final class SearchViewModel: ObservableObject {
 
     private var task: Task<Void, Never>?
 
-    func runSearch() {
+    func runSearch(localTracks: [Track]) {
         task?.cancel()
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else {
@@ -29,22 +29,25 @@ final class SearchViewModel: ObservableObject {
             if Task.isCancelled { return }
             let remote = await JamendoService.search(q)
             if Task.isCancelled { return }
-            let local = MusicCatalog.allTracks.filter {
-                $0.title.localizedCaseInsensitiveContains(q) || $0.artist.localizedCaseInsensitiveContains(q)
+            let local = (MusicCatalog.allTracks + localTracks).filter {
+                $0.title.localizedCaseInsensitiveContains(q) ||
+                $0.artist.localizedCaseInsensitiveContains(q) ||
+                $0.genre.localizedCaseInsensitiveContains(q) ||
+                ($0.detailText?.localizedCaseInsensitiveContains(q) == true)
             }
             results = local + remote
             isSearching = false
         }
     }
 
-    func loadGenre(_ genre: Genre) {
+    func loadGenre(_ genre: Genre, localTracks: [Track]) {
         selectedGenre = genre
         isSearching = true
         task?.cancel()
         task = Task {
             let remote = await JamendoService.byGenre(genre.rawValue.lowercased())
             if Task.isCancelled { return }
-            let local = MusicCatalog.allTracks.filter { $0.genre == genre.rawValue }
+            let local = (MusicCatalog.allTracks + localTracks).filter { $0.genre == genre.rawValue }
             results = local + remote
             isSearching = false
         }
@@ -53,6 +56,7 @@ final class SearchViewModel: ObservableObject {
 
 struct SearchView: View {
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var library: LocalMusicLibrary
     @ObservedObject private var player = AudioPlayerManager.shared
     @StateObject private var vm = SearchViewModel()
     @FocusState private var focused: Bool
@@ -64,11 +68,11 @@ struct SearchView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(AuraColor.textSecondary)
-                    TextField(settings.t(.searchPrompt), text: $vm.query)
-                        .focused($focused)
-                        .foregroundStyle(AuraColor.textPrimary)
-                        .submitLabel(.search)
-                        .onChange(of: vm.query) { _, _ in vm.runSearch() }
+                        TextField(settings.t(.searchPrompt), text: $vm.query)
+                            .focused($focused)
+                            .foregroundStyle(AuraColor.textPrimary)
+                            .submitLabel(.search)
+                        .onChange(of: vm.query) { _, _ in vm.runSearch(localTracks: library.tracks) }
                         .tint(AuraColor.green)
                     if !vm.query.isEmpty {
                         Button {
@@ -116,6 +120,12 @@ struct SearchView: View {
         .background(AppBackground())
         .navigationTitle(settings.t(.search))
         .navigationBarTitleDisplayMode(.large)
+        .onAppear { if !vm.query.isEmpty { vm.runSearch(localTracks: library.tracks) } }
+        .onChange(of: library.tracks) { _, _ in
+            if !vm.query.isEmpty {
+                vm.runSearch(localTracks: library.tracks)
+            }
+        }
     }
 
     private var genreSection: some View {
@@ -125,7 +135,7 @@ struct SearchView: View {
                 ForEach(Genre.allCases) { genre in
                     Button {
                         HapticManager.tap()
-                        vm.loadGenre(genre)
+                        vm.loadGenre(genre, localTracks: library.tracks)
                     } label: {
                         genreTile(genre)
                     }

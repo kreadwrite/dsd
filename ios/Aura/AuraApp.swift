@@ -9,6 +9,7 @@ import SwiftUI
 struct AuraApp: App {
     @StateObject private var settings = AppSettings()
     @StateObject private var player = AudioPlayerManager.shared
+    @StateObject private var library = LocalMusicLibrary.shared
     @State private var showOnboarding = false
 
     var body: some Scene {
@@ -17,6 +18,7 @@ struct AuraApp: App {
                 RootView()
                     .environmentObject(settings)
                     .environmentObject(player)
+                    .environmentObject(library)
 
                 if showOnboarding {
                     OnboardingView { withAnimation(.easeInOut(duration: 0.45)) { showOnboarding = false } }
@@ -29,6 +31,7 @@ struct AuraApp: App {
             .tint(AuraColor.green)
             .onAppear {
                 player.attach(settings: settings)
+                player.attach(library: library)
                 showOnboarding = !settings.hasOnboarded
                 NotificationManager.scheduleDaily(
                     minutes: settings.reminderMinutes,

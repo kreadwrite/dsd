@@ -27,8 +27,8 @@ enum AuraColor {
     static let green = Color(hex: 0x1DB954)
     static let greenBright = Color(hex: 0x1ED760)
 
-    /// Electric blue for interactive elements, links and selection.
-    static let blue = Color(hex: 0x0A84FF)
+    /// Kept for compatibility, but mapped to green so the palette stays green-first.
+    static let blue = Color(hex: 0x1ED760)
 
     /// Adaptive base background (near-black in dark, white in light).
     static let background = Color(uiColor: UIColor { trait in

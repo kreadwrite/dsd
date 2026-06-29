@@ -7,11 +7,13 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct CoverArt: View {
     let imageURL: String?
     let initials: String
     let colorSeed: UInt
+    var artworkData: Data? = nil
     var cornerRadius: CGFloat = 12
     var symbol: String = "music.note"
     var showInitials: Bool = true
@@ -26,7 +28,9 @@ struct CoverArt: View {
                 endPoint: .bottomTrailing
             )
 
-            if let urlString = imageURL, let url = URL(string: urlString) {
+            if let artworkData, let uiImage = UIImage(data: artworkData) {
+                Image(uiImage: uiImage).resizable().scaledToFill()
+            } else if let urlString = imageURL, let url = URL(string: urlString) {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):

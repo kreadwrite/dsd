@@ -15,7 +15,7 @@ struct MiniPlayerView: View {
         if let track = player.current {
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
-                    CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, cornerRadius: 8)
+                    CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, artworkData: track.artworkData, cornerRadius: 8)
                         .frame(width: 42, height: 42)
 
                     VStack(alignment: .leading, spacing: 1) {

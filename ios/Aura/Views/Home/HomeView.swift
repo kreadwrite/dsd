@@ -123,15 +123,33 @@ struct PressableStyle: ButtonStyle {
 
 /// Shared ambient wallpaper background.
 struct AppBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
             AuraColor.background.ignoresSafeArea()
-            Image("dark_music_app_bg")
-                .resizable()
-                .scaledToFill()
-                .opacity(0.6)
+            if colorScheme == .dark {
+                Image("dark_music_app_bg")
+                    .resizable()
+                    .scaledToFill()
+                    .opacity(0.55)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            } else {
+                LinearGradient(
+                    colors: [AuraColor.background, AuraColor.surface.opacity(0.9), AuraColor.background],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+                Image("glowing_ribbons_ambient")
+                    .resizable()
+                    .scaledToFill()
+                    .opacity(0.18)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
         }
     }
 }

@@ -33,7 +33,10 @@ final class AudioPlayerManager: ObservableObject {
     private var queue: [Track] = []
     private var index = 0
     private var settings: AppSettings?
+    private var library: LocalMusicLibrary?
     private let favoritesKey = "favoriteTrackIDs"
+    private var listeningAccumulator: Double = 0
+    private var lastObservedPlaybackTime: Double?
 
     private init() {
         configureSession()
@@ -43,6 +46,10 @@ final class AudioPlayerManager: ObservableObject {
 
     func attach(settings: AppSettings) {
         self.settings = settings
+    }
+
+    func attach(library: LocalMusicLibrary) {
+        self.library = library
     }
 
     // MARK: - Session
@@ -59,6 +66,7 @@ final class AudioPlayerManager: ObservableObject {
     // MARK: - Queue control
 
     func play(track: Track, in tracks: [Track]) {
+        commitListeningProgress()
         queue = tracks.isEmpty ? [track] : tracks
         index = queue.firstIndex(of: track) ?? 0
         startCurrent()
@@ -73,8 +81,12 @@ final class AudioPlayerManager: ObservableObject {
         let track = queue[index]
         current = track
         duration = Double(track.duration)
+        currentTime = 0
+        progress = 0
+        lastObservedPlaybackTime = nil
+        listeningAccumulator = 0
 
-        guard let url = URL(string: track.streamURL) else { return }
+        guard let url = track.playbackURL else { return }
         if let observer = timeObserver { player?.removeTimeObserver(observer); timeObserver = nil }
 
         let item = AVPlayerItem(url: url)
@@ -99,19 +111,47 @@ final class AudioPlayerManager: ObservableObject {
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self else { return }
             Task { @MainActor in
-                self.currentTime = time.seconds
+                let seconds = max(0, time.seconds)
+                self.captureListeningProgress(currentTime: seconds)
+                self.currentTime = seconds
                 if let dur = self.player?.currentItem?.duration.seconds, dur.isFinite, dur > 0 {
                     self.duration = dur
-                    self.progress = self.currentTime / dur
+                    self.progress = min(1, self.currentTime / dur)
                 }
                 self.updateNowPlayingTime()
             }
         }
     }
 
+    private func captureListeningProgress(currentTime: Double) {
+        guard isPlaying else { return }
+        guard currentTime.isFinite else { return }
+        defer { lastObservedPlaybackTime = currentTime }
+        guard let lastObservedPlaybackTime else { return }
+        let delta = currentTime - lastObservedPlaybackTime
+        guard delta > 0 else { return }
+        listeningAccumulator += delta
+        let wholeSeconds = Int(listeningAccumulator)
+        if wholeSeconds > 0 {
+            settings?.addListening(seconds: wholeSeconds)
+            listeningAccumulator -= Double(wholeSeconds)
+        }
+    }
+
+    private func commitListeningProgress() {
+        if let currentTime = lastObservedPlaybackTime {
+            captureListeningProgress(currentTime: currentTime)
+        }
+        let wholeSeconds = Int(listeningAccumulator)
+        if wholeSeconds > 0 {
+            settings?.addListening(seconds: wholeSeconds)
+            listeningAccumulator -= Double(wholeSeconds)
+        }
+    }
+
     @objc private func itemDidFinish() {
         Task { @MainActor in
-            self.settings?.addListening(seconds: Int(self.duration))
+            self.commitListeningProgress()
             switch self.repeatMode {
             case .one: self.seek(to: 0); self.player?.play()
             default: self.next()
@@ -126,7 +166,13 @@ final class AudioPlayerManager: ObservableObject {
             if let track = current { playSingle(track) }
             return
         }
-        if isPlaying { player?.pause() } else { player?.play() }
+        if isPlaying {
+            captureListeningProgress(currentTime: currentTime)
+            commitListeningProgress()
+            player?.pause()
+        } else {
+            player?.play()
+        }
         isPlaying.toggle()
         updateNowPlaying()
         HapticManager.tap()
@@ -134,6 +180,7 @@ final class AudioPlayerManager: ObservableObject {
 
     func next() {
         guard !queue.isEmpty else { return }
+        commitListeningProgress()
         if isShuffle {
             index = Int.random(in: 0..<queue.count)
         } else if index + 1 < queue.count {
@@ -151,6 +198,7 @@ final class AudioPlayerManager: ObservableObject {
         if currentTime > 3 {
             seek(to: 0); return
         }
+        commitListeningProgress()
         index = index > 0 ? index - 1 : queue.count - 1
         startCurrent()
     }
@@ -159,6 +207,7 @@ final class AudioPlayerManager: ObservableObject {
         player?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
         currentTime = seconds
         if duration > 0 { progress = seconds / duration }
+        lastObservedPlaybackTime = seconds
         updateNowPlayingTime()
     }
 
@@ -198,7 +247,9 @@ final class AudioPlayerManager: ObservableObject {
 
     var favoriteTracks: [Track] {
         favorites.compactMap { id in
-            MusicCatalog.track(id: id) ?? (current?.id == id ? current : nil)
+            MusicCatalog.track(id: id)
+            ?? library?.tracks.first(where: { $0.id == id })
+            ?? (current?.id == id ? current : nil)
         }
     }
 
@@ -243,7 +294,7 @@ final class AudioPlayerManager: ObservableObject {
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
         ]
-        if let img = UIImage(systemName: "music.note") {
+        if let img = track.artworkImage ?? UIImage(systemName: "music.note") {
             info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: img.size) { _ in img }
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info

@@ -14,7 +14,7 @@ struct TrackRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, cornerRadius: 8)
+            CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, artworkData: track.artworkData, cornerRadius: 8)
                 .frame(width: 52, height: 52)
                 .overlay {
                     if isCurrent {

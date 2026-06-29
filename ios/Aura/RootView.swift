@@ -2,9 +2,8 @@
 //  RootView.swift
 //  Aura
 //
-//  Liquid Glass tab bar. Home / Favorites / Profile are grouped, while Search
-//  sits in its own glass capsule (iOS 26 `.search` tab role), and the
-//  mini-player floats as the tab-bar bottom accessory.
+//  Liquid Glass tab bar. Home / Search / Profile are grouped, while the
+//  mini-player floats as the tab-bar bottom accessory when playback is active.
 //
 
 import SwiftUI
@@ -32,23 +31,37 @@ struct RootView: View {
 
     @available(iOS 26.0, *)
     private var modernTabs: some View {
-        TabView {
-            Tab(settings.t(.home), systemImage: "house.fill") {
-                NavigationStack { HomeView() }
+        Group {
+            if player.current != nil {
+                TabView {
+                    Tab(settings.t(.home), systemImage: "house.fill") {
+                        NavigationStack { HomeView() }
+                    }
+                    Tab(settings.t(.search), systemImage: "magnifyingglass", role: .search) {
+                        NavigationStack { SearchView() }
+                    }
+                    Tab(settings.t(.profile), systemImage: "person.fill") {
+                        NavigationStack { ProfileView() }
+                    }
+                }
+                .tabBarMinimizeBehavior(.onScrollDown)
+                .tabViewBottomAccessory {
+                    MiniPlayerAccessory { showFullPlayer = true }
+                }
+            } else {
+                TabView {
+                    Tab(settings.t(.home), systemImage: "house.fill") {
+                        NavigationStack { HomeView() }
+                    }
+                    Tab(settings.t(.search), systemImage: "magnifyingglass", role: .search) {
+                        NavigationStack { SearchView() }
+                    }
+                    Tab(settings.t(.profile), systemImage: "person.fill") {
+                        NavigationStack { ProfileView() }
+                    }
+                }
+                .tabBarMinimizeBehavior(.onScrollDown)
             }
-            Tab(settings.t(.favorites), systemImage: "heart.fill") {
-                NavigationStack { FavoritesView() }
-            }
-            Tab(settings.t(.profile), systemImage: "person.fill") {
-                NavigationStack { ProfileView() }
-            }
-            Tab(settings.t(.search), systemImage: "magnifyingglass", role: .search) {
-                NavigationStack { SearchView() }
-            }
-        }
-        .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
-            MiniPlayerAccessory { showFullPlayer = true }
         }
     }
 
@@ -59,8 +72,6 @@ struct RootView: View {
             TabView {
                 NavigationStack { HomeView() }
                     .tabItem { Label(settings.t(.home), systemImage: "house.fill") }
-                NavigationStack { FavoritesView() }
-                    .tabItem { Label(settings.t(.favorites), systemImage: "heart.fill") }
                 NavigationStack { SearchView() }
                     .tabItem { Label(settings.t(.search), systemImage: "magnifyingglass") }
                 NavigationStack { ProfileView() }
@@ -83,7 +94,7 @@ private struct MiniPlayerAccessory: View {
     var body: some View {
         if let track = player.current {
             HStack(spacing: 12) {
-                CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, cornerRadius: 7)
+                CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, artworkData: track.artworkData, cornerRadius: 7)
                     .frame(width: 36, height: 36)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(track.title)
