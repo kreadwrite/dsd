@@ -27,15 +27,7 @@ final class SearchViewModel: ObservableObject {
         task = Task {
             try? await Task.sleep(for: .milliseconds(350))
             if Task.isCancelled { return }
-            let remote = await JamendoService.search(q)
-            if Task.isCancelled { return }
-            let local = (MusicCatalog.allTracks + localTracks).filter {
-                $0.title.localizedCaseInsensitiveContains(q)
-                || $0.artist.localizedCaseInsensitiveContains(q)
-                || $0.genre.localizedCaseInsensitiveContains(q)
-                || ($0.detailText?.localizedCaseInsensitiveContains(q) == true)
-            }
-            results = local + remote
+            results = await MusicProviderService.search(q, localTracks: localTracks)
             isSearching = false
         }
     }
@@ -45,10 +37,9 @@ final class SearchViewModel: ObservableObject {
         isSearching = true
         task?.cancel()
         task = Task {
-            let remote = await JamendoService.byGenre(genre.rawValue.lowercased())
+            let tracks = await MusicProviderService.byGenre(genre, localTracks: localTracks)
             if Task.isCancelled { return }
-            let local = (MusicCatalog.allTracks + localTracks).filter { $0.genre == genre.rawValue }
-            results = local + remote
+            results = tracks
             isSearching = false
         }
     }

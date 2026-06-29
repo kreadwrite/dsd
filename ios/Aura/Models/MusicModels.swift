@@ -11,6 +11,8 @@ import UIKit
 /// generated solid-colour placeholder built from the artist initials.
 nonisolated struct Track: Identifiable, Hashable, Codable {
     let id: String
+    let source: String
+    let sourceID: String?
     let title: String
     let artist: String
     let genre: String
@@ -24,12 +26,88 @@ nonisolated struct Track: Identifiable, Hashable, Codable {
     let isLocal: Bool
     /// Optional notes/description provided by the user.
     let detailText: String?
+    let externalURL: String?
+    let lyrics: String?
+    let commentCount: Int
+    let likeCount: Int
+    let isUserUploaded: Bool
     /// Optional imported artwork stored in the sandbox.
     let artworkData: Data?
     /// Two-letter initials used for the placeholder cover.
     let initials: String
     /// Hex colour seed for the placeholder cover gradient.
     let colorSeed: UInt
+
+    init(
+        id: String,
+        source: String = "catalog",
+        sourceID: String? = nil,
+        title: String,
+        artist: String,
+        genre: String,
+        duration: Int,
+        streamURL: String,
+        imageURL: String?,
+        isLocal: Bool,
+        detailText: String?,
+        externalURL: String? = nil,
+        lyrics: String? = nil,
+        commentCount: Int = 0,
+        likeCount: Int = 0,
+        isUserUploaded: Bool = false,
+        artworkData: Data?,
+        initials: String,
+        colorSeed: UInt
+    ) {
+        self.id = id
+        self.source = source
+        self.sourceID = sourceID
+        self.title = title
+        self.artist = artist
+        self.genre = genre
+        self.duration = duration
+        self.streamURL = streamURL
+        self.imageURL = imageURL
+        self.isLocal = isLocal
+        self.detailText = detailText
+        self.externalURL = externalURL
+        self.lyrics = lyrics
+        self.commentCount = commentCount
+        self.likeCount = likeCount
+        self.isUserUploaded = isUserUploaded
+        self.artworkData = artworkData
+        self.initials = initials
+        self.colorSeed = colorSeed
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, source, sourceID, title, artist, genre, duration, streamURL, imageURL
+        case isLocal, detailText, externalURL, lyrics, commentCount, likeCount
+        case isUserUploaded, artworkData, initials, colorSeed
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        source = try c.decodeIfPresent(String.self, forKey: .source) ?? "catalog"
+        sourceID = try c.decodeIfPresent(String.self, forKey: .sourceID)
+        title = try c.decode(String.self, forKey: .title)
+        artist = try c.decode(String.self, forKey: .artist)
+        genre = try c.decode(String.self, forKey: .genre)
+        duration = try c.decode(Int.self, forKey: .duration)
+        streamURL = try c.decode(String.self, forKey: .streamURL)
+        imageURL = try c.decodeIfPresent(String.self, forKey: .imageURL)
+        isLocal = try c.decodeIfPresent(Bool.self, forKey: .isLocal) ?? false
+        detailText = try c.decodeIfPresent(String.self, forKey: .detailText)
+        externalURL = try c.decodeIfPresent(String.self, forKey: .externalURL)
+        lyrics = try c.decodeIfPresent(String.self, forKey: .lyrics)
+        commentCount = try c.decodeIfPresent(Int.self, forKey: .commentCount) ?? 0
+        likeCount = try c.decodeIfPresent(Int.self, forKey: .likeCount) ?? 0
+        isUserUploaded = try c.decodeIfPresent(Bool.self, forKey: .isUserUploaded) ?? isLocal
+        artworkData = try c.decodeIfPresent(Data.self, forKey: .artworkData)
+        initials = try c.decode(String.self, forKey: .initials)
+        colorSeed = try c.decode(UInt.self, forKey: .colorSeed)
+    }
 
     var playbackURL: URL? {
         if isLocal {

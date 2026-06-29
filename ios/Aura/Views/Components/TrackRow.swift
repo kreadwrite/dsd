@@ -34,10 +34,18 @@ struct TrackRow: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(isCurrent ? AuraColor.green : AuraColor.textPrimary)
                     .lineLimit(1)
-                Text(track.artist)
-                    .font(.system(size: 13))
-                    .foregroundStyle(AuraColor.textSecondary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(track.artist)
+                        .font(.system(size: 13))
+                        .foregroundStyle(AuraColor.textSecondary)
+                        .lineLimit(1)
+                    Text(sourceTitle)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(AuraColor.green)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(AuraColor.green.opacity(0.14)))
+                }
             }
 
             Spacer(minLength: 8)
@@ -61,5 +69,9 @@ struct TrackRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+
+    private var sourceTitle: String {
+        MusicProviderID(rawValue: track.source)?.title ?? track.source.capitalized
     }
 }

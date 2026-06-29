@@ -76,6 +76,8 @@ final class LocalMusicLibrary: ObservableObject {
     ) async throws -> Track {
         let track = Track(
             id: "local_\(draft.fileURL.lastPathComponent)_\(UUID().uuidString)",
+            source: "local",
+            sourceID: draft.fileURL.lastPathComponent,
             title: title.isEmpty ? draft.suggestedTitle : title,
             artist: artist.isEmpty ? draft.suggestedArtist : artist,
             genre: genre.rawValue,
@@ -84,6 +86,9 @@ final class LocalMusicLibrary: ObservableObject {
             imageURL: nil,
             isLocal: true,
             detailText: notes,
+            externalURL: nil,
+            lyrics: notes,
+            isUserUploaded: true,
             artworkData: artworkData,
             initials: Self.initials(for: artist.isEmpty ? draft.suggestedArtist : artist, title: title.isEmpty ? draft.suggestedTitle : title),
             colorSeed: Self.colorSeed(for: title.isEmpty ? draft.suggestedTitle : title, artist: artist.isEmpty ? draft.suggestedArtist : artist)
@@ -98,6 +103,56 @@ final class LocalMusicLibrary: ObservableObject {
         tracks.first { $0.id == id }
     }
 
+    func updateTrack(
+        id: String,
+        title: String,
+        artist: String,
+        genre: Genre,
+        notes: String?,
+        artworkData: Data?
+    ) throws {
+        guard let index = tracks.firstIndex(where: { $0.id == id }) else { return }
+        let old = tracks[index]
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newTitle = cleanTitle.isEmpty ? old.title : cleanTitle
+        let newArtist = cleanArtist.isEmpty ? old.artist : cleanArtist
+        tracks[index] = Track(
+            id: old.id,
+            source: old.source,
+            sourceID: old.sourceID,
+            title: newTitle,
+            artist: newArtist,
+            genre: genre.rawValue,
+            duration: old.duration,
+            streamURL: old.streamURL,
+            imageURL: old.imageURL,
+            isLocal: old.isLocal,
+            detailText: notes,
+            externalURL: old.externalURL,
+            lyrics: notes,
+            commentCount: old.commentCount,
+            likeCount: old.likeCount,
+            isUserUploaded: old.isUserUploaded,
+            artworkData: artworkData ?? old.artworkData,
+            initials: Self.initials(for: newArtist, title: newTitle),
+            colorSeed: Self.colorSeed(for: newTitle, artist: newArtist)
+        )
+        try save()
+    }
+
+    func deleteTrack(id: String) throws {
+        guard let index = tracks.firstIndex(where: { $0.id == id }) else { return }
+        let track = tracks.remove(at: index)
+        if track.isLocal {
+            let url = URL(fileURLWithPath: track.streamURL)
+            if fileManager.fileExists(atPath: url.path) {
+                try? fileManager.removeItem(at: url)
+            }
+        }
+        try save()
+    }
+
     // MARK: - Persistence
 
     private struct StoredTrack: Codable {
@@ -110,9 +165,79 @@ final class LocalMusicLibrary: ObservableObject {
         let imageURL: String?
         let isLocal: Bool
         let detailText: String?
+        let externalURL: String?
+        let lyrics: String?
+        let commentCount: Int
+        let likeCount: Int
+        let isUserUploaded: Bool
         let artworkData: Data?
         let initials: String
         let colorSeed: UInt
+
+        init(
+            id: String,
+            title: String,
+            artist: String,
+            genre: String,
+            duration: Int,
+            streamURL: String,
+            imageURL: String?,
+            isLocal: Bool,
+            detailText: String?,
+            externalURL: String?,
+            lyrics: String?,
+            commentCount: Int,
+            likeCount: Int,
+            isUserUploaded: Bool,
+            artworkData: Data?,
+            initials: String,
+            colorSeed: UInt
+        ) {
+            self.id = id
+            self.title = title
+            self.artist = artist
+            self.genre = genre
+            self.duration = duration
+            self.streamURL = streamURL
+            self.imageURL = imageURL
+            self.isLocal = isLocal
+            self.detailText = detailText
+            self.externalURL = externalURL
+            self.lyrics = lyrics
+            self.commentCount = commentCount
+            self.likeCount = likeCount
+            self.isUserUploaded = isUserUploaded
+            self.artworkData = artworkData
+            self.initials = initials
+            self.colorSeed = colorSeed
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id, title, artist, genre, duration, streamURL, imageURL, isLocal
+            case detailText, externalURL, lyrics, commentCount, likeCount
+            case isUserUploaded, artworkData, initials, colorSeed
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            title = try c.decode(String.self, forKey: .title)
+            artist = try c.decode(String.self, forKey: .artist)
+            genre = try c.decode(String.self, forKey: .genre)
+            duration = try c.decode(Int.self, forKey: .duration)
+            streamURL = try c.decode(String.self, forKey: .streamURL)
+            imageURL = try c.decodeIfPresent(String.self, forKey: .imageURL)
+            isLocal = try c.decodeIfPresent(Bool.self, forKey: .isLocal) ?? true
+            detailText = try c.decodeIfPresent(String.self, forKey: .detailText)
+            externalURL = try c.decodeIfPresent(String.self, forKey: .externalURL)
+            lyrics = try c.decodeIfPresent(String.self, forKey: .lyrics) ?? detailText
+            commentCount = try c.decodeIfPresent(Int.self, forKey: .commentCount) ?? 0
+            likeCount = try c.decodeIfPresent(Int.self, forKey: .likeCount) ?? 0
+            isUserUploaded = try c.decodeIfPresent(Bool.self, forKey: .isUserUploaded) ?? isLocal
+            artworkData = try c.decodeIfPresent(Data.self, forKey: .artworkData)
+            initials = try c.decode(String.self, forKey: .initials)
+            colorSeed = try c.decode(UInt.self, forKey: .colorSeed)
+        }
     }
 
     private func load() {
@@ -132,6 +257,11 @@ final class LocalMusicLibrary: ObservableObject {
                     imageURL: $0.imageURL,
                     isLocal: $0.isLocal,
                     detailText: $0.detailText,
+                    externalURL: $0.externalURL,
+                    lyrics: $0.lyrics,
+                    commentCount: $0.commentCount,
+                    likeCount: $0.likeCount,
+                    isUserUploaded: $0.isUserUploaded,
                     artworkData: $0.artworkData,
                     initials: $0.initials,
                     colorSeed: $0.colorSeed
@@ -154,6 +284,11 @@ final class LocalMusicLibrary: ObservableObject {
                 imageURL: $0.imageURL,
                 isLocal: $0.isLocal,
                 detailText: $0.detailText,
+                externalURL: $0.externalURL,
+                lyrics: $0.lyrics,
+                commentCount: $0.commentCount,
+                likeCount: $0.likeCount,
+                isUserUploaded: $0.isUserUploaded,
                 artworkData: $0.artworkData,
                 initials: $0.initials,
                 colorSeed: $0.colorSeed

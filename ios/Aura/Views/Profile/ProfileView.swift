@@ -196,12 +196,17 @@ struct ProfileView: View {
                 }
                 .buttonStyle(.plain)
 
-                libraryTile(
-                    title: settings.t(.myMusic),
-                    subtitle: "\(library.tracks.count) \(settings.t(.tracksCount))",
-                    icon: "music.note.list",
-                    tint: AuraColor.greenBright
-                )
+                NavigationLink {
+                    MyMusicView()
+                } label: {
+                    libraryTile(
+                        title: settings.t(.myMusic),
+                        subtitle: "\(library.tracks.count) \(settings.t(.tracksCount))",
+                        icon: "music.note.list",
+                        tint: AuraColor.greenBright
+                    )
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
         }

@@ -39,6 +39,8 @@ nonisolated struct JamendoService {
         let initials = String(j.artist_name.prefix(2)).uppercased()
         return Track(
             id: "jam_\(j.id)",
+            source: MusicProviderID.jamendo.rawValue,
+            sourceID: j.id,
             title: j.name,
             artist: j.artist_name,
             genre: genre,
