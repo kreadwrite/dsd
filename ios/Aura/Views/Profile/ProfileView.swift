@@ -69,7 +69,10 @@ struct ProfileView: View {
                         notes: notes,
                         artworkData: artworkData
                     )
-                    player.playSingle(imported)
+                    await MainActor.run {
+                        player.playSingle(imported)
+                    }
+                    return imported
                 }
             )
         }
