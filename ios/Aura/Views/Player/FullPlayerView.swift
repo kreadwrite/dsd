@@ -22,7 +22,8 @@ struct FullPlayerView: View {
                             Spacer(minLength: 260)
                         }
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: min(geo.size.width - 40, 420))
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 24)
                 }
@@ -32,7 +33,7 @@ struct FullPlayerView: View {
     }
 
     private func coverSize(for size: CGSize) -> CGFloat {
-        min(max(240, min(size.width - 64, 360)), size.height * 0.36)
+        min(max(220, min(size.width - 72, 320)), size.height * 0.32)
     }
 
     @ViewBuilder
@@ -51,6 +52,7 @@ struct FullPlayerView: View {
             .shadow(color: Color(hex: track.colorSeed).opacity(colorScheme == .dark ? 0.5 : 0.22), radius: 30, y: 16)
             .scaleEffect(player.isPlaying ? 1 : 0.95)
             .animation(.spring(response: 0.5, dampingFraction: 0.75), value: player.isPlaying)
+            .frame(maxWidth: .infinity)
 
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -81,6 +83,7 @@ struct FullPlayerView: View {
                         .frame(width: 44, height: 44)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 30)
 
@@ -156,6 +159,7 @@ struct FullPlayerView: View {
             }
         }
         .padding(.top, 4)
+        .frame(maxWidth: .infinity)
     }
 
     private var scrubber: some View {
