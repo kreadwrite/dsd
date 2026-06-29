@@ -82,13 +82,19 @@ struct FullPlayerView: View {
                 }
             }
 
+            Spacer(minLength: 30)
+
             scrubber
+
+            Spacer(minLength: 20)
 
             controls
 
+            Spacer(minLength: 20)
+
             volumeSlider
         }
-        .padding(.top, 4)
+        .padding(.top, 16)
     }
 
     private var backdrop: some View {

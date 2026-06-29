@@ -59,7 +59,7 @@ struct ProfileView: View {
         }
         .sheet(item: $pendingImport) { draft in
             AddMusicSheet(
-                draft: draft,
+                fileURL: draft.fileURL,
                 onSave: { title, artist, genre, notes, artworkData in
                     let imported = try await library.importPreparedTrack(
                         draft,
@@ -72,7 +72,6 @@ struct ProfileView: View {
                     await MainActor.run {
                         player.playSingle(imported)
                     }
-                    return imported
                 }
             )
         }
@@ -355,152 +354,81 @@ struct ProfileView: View {
 }
 
 private struct AddMusicSheet: View {
-    let draft: LocalMusicLibrary.PendingImport
-    let onSave: @Sendable (String, String, Genre, String?, Data?) async throws -> Track
+    let fileURL: URL
+    let onSave: @Sendable (String, String, Genre, String?, Data?) async throws -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var settings: AppSettings
-
-    @State private var title: String
-    @State private var artist: String
-    @State private var genre: Genre
-    @State private var notes: String = ""
-    @State private var artworkItem: PhotosPickerItem?
-    @State private var artworkData: Data?
-    @State private var saving = false
+    @State private var title = ""
+    @State private var artist = ""
+    @State private var notes = ""
+    @State private var genre: Genre = .pop
+    @State private var coverItem: PhotosPickerItem?
+    @State private var coverData: Data?
+    @State private var isSaving = false
     @State private var errorMessage: String?
-
-    init(
-        draft: LocalMusicLibrary.PendingImport,
-        onSave: @escaping @Sendable (String, String, Genre, String?, Data?) async throws -> Track
-    ) {
-        self.draft = draft
-        self.onSave = onSave
-        _title = State(initialValue: draft.suggestedTitle)
-        _artist = State(initialValue: draft.suggestedArtist)
-        _genre = State(initialValue: .rap)
-    }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 18) {
-                    TextField(settings.t(.titleField), text: $title)
-                        .textInputAutocapitalization(.words)
-                        .padding()
-                        .auraGlass(in: .rect(cornerRadius: 18))
-
-                    TextField(settings.t(.artistField), text: $artist)
-                        .textInputAutocapitalization(.words)
-                        .padding()
-                        .auraGlass(in: .rect(cornerRadius: 18))
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(settings.t(.genreField))
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AuraColor.textPrimary)
-                        Picker("", selection: $genre) {
-                            ForEach(Genre.allCases) { item in
-                                Text(item.rawValue).tag(item)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .tint(AuraColor.green)
-                    }
-                    .padding()
-                    .auraGlass(in: .rect(cornerRadius: 18))
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(settings.t(.trackNotes))
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AuraColor.textPrimary)
-                        TextEditor(text: $notes)
-                            .frame(minHeight: 100)
-                            .scrollContentBackground(.hidden)
-                            .padding(8)
-                            .background(Color.clear)
-                    }
-                    .padding()
-                    .auraGlass(in: .rect(cornerRadius: 18))
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Image(systemName: "photo")
-                                .foregroundStyle(AuraColor.green)
-                            Text(settings.t(.cover))
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(AuraColor.textPrimary)
-                            Spacer()
-                            PhotosPicker(selection: $artworkItem, matching: .images) {
-                                Text(settings.t(.addMusic))
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(AuraColor.green)
-                            }
-                        }
-
-                        if let artworkData, let image = UIImage(data: artworkData) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(height: 180)
-                                .clipShape(.rect(cornerRadius: 16))
-                        } else {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(AuraColor.surface)
-                                .frame(height: 140)
-                                .overlay(
-                                    VStack(spacing: 8) {
-                                        Image(systemName: "photo.on.rectangle.angled")
-                                            .font(.system(size: 24, weight: .semibold))
-                                            .foregroundStyle(AuraColor.textSecondary)
-                                        Text(settings.t(.coverHint))
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(AuraColor.textSecondary)
-                                            .multilineTextAlignment(.center)
-                                    }
-                                    .padding(.horizontal, 20)
-                                )
-                        }
-                    }
-                    .padding()
-                    .auraGlass(in: .rect(cornerRadius: 18))
-
-                    Text("\(draft.suggestedTitle) • \(draft.durationText)")
-                        .font(.system(size: 13))
+            Form {
+                Section {
+                    Text(fileURL.lastPathComponent)
                         .foregroundStyle(AuraColor.textSecondary)
                 }
-                .padding(20)
+                Section {
+                    TextField("Название", text: $title)
+                    TextField("Исполнитель", text: $artist)
+                    Picker("Жанр", selection: $genre) {
+                        ForEach(Genre.allCases) { item in
+                            Text(item.rawValue).tag(item)
+                        }
+                    }
+                    .tint(AuraColor.green)
+                    TextField("Текст / заметка", text: $notes, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+                Section {
+                    PhotosPicker(selection: $coverItem, matching: .images) {
+                        Label("Обложка", systemImage: "photo")
+                    }
+                    if coverData != nil {
+                        Text("Обложка выбрана")
+                            .foregroundStyle(AuraColor.textSecondary)
+                    }
+                }
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                    }
+                }
             }
-            .scrollIndicators(.hidden)
             .background(AppBackground())
-            .navigationTitle(settings.t(.addMusic))
+            .navigationTitle("Импорт MP3")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(settings.t(.cancel)) { dismiss() }
-                        .foregroundStyle(AuraColor.green)
+                    Button("Отмена") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(settings.t(.save)) {
+                    Button(isSaving ? "..." : "Добавить") {
                         Task { await save() }
                     }
-                    .foregroundStyle(AuraColor.green)
-                    .disabled(saving)
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || artist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
                 }
             }
-            .alert(settings.t(.addMusic), isPresented: Binding(
+            .alert("Импорт MP3", isPresented: Binding(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
             )) {
-                Button(settings.t(.done), role: .cancel) { errorMessage = nil }
+                Button("OK", role: .cancel) { errorMessage = nil }
             } message: {
                 Text(errorMessage ?? "")
             }
-            .onChange(of: artworkItem) { _, newItem in
+            .onChange(of: coverItem) { _, newItem in
                 guard let newItem else { return }
                 Task {
                     if let data = try? await newItem.loadTransferable(type: Data.self) {
-                        artworkData = data
+                        coverData = data
                     }
                 }
             }
@@ -508,15 +436,15 @@ private struct AddMusicSheet: View {
     }
 
     private func save() async {
-        guard !saving else { return }
-        saving = true
-        defer { saving = false }
+        guard !isSaving else { return }
+        isSaving = true
+        defer { isSaving = false }
         do {
-            _ = try await onSave(title.trimmingCharacters(in: .whitespacesAndNewlines),
-                                 artist.trimmingCharacters(in: .whitespacesAndNewlines),
-                                 genre,
-                                 notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes,
-                                 artworkData)
+            try await onSave(title.trimmingCharacters(in: .whitespacesAndNewlines),
+                             artist.trimmingCharacters(in: .whitespacesAndNewlines),
+                             genre,
+                             notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes,
+                             coverData)
             HapticManager.success()
             dismiss()
         } catch {
