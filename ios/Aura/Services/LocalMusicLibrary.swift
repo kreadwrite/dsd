@@ -5,6 +5,7 @@
 
 import Foundation
 import AVFoundation
+import Combine
 import UIKit
 
 @MainActor
@@ -118,7 +119,7 @@ final class LocalMusicLibrary: ObservableObject {
                     colorSeed: record.colorSeed,
                     isLocal: true,
                     detailText: record.detailText,
-                    artworkData: record.artworkBase64.flatMap(Data.init(base64Encoded:))
+                    artworkData: record.artworkBase64.flatMap { Data(base64Encoded: $0) }
                 )
             }
         } catch {

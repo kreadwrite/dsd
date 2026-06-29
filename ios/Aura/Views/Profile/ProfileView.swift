@@ -59,7 +59,7 @@ struct ProfileView: View {
         .sheet(isPresented: $showAddMusicSheet) {
             if let pendingImportURL {
                 AddMusicSheet(fileURL: pendingImportURL) { title, artist, genre, notes, coverData in
-                    try await library.importTrack(
+                    _ = try await library.importTrack(
                         from: pendingImportURL,
                         title: title,
                         artist: artist,

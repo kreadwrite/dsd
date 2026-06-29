@@ -8,7 +8,7 @@ import UIKit
 
 /// A playable track. Cover is either a remote image URL, local artwork data,
 /// or a generated solid-colour placeholder built from the artist initials.
-struct Track: Identifiable, Hashable, Codable {
+nonisolated struct Track: Identifiable, Hashable, Codable {
     let id: String
     let title: String
     let artist: String
@@ -77,7 +77,7 @@ struct Track: Identifiable, Hashable, Codable {
     }
 }
 
-struct Artist: Identifiable, Hashable {
+nonisolated struct Artist: Identifiable, Hashable {
     let id: String
     let name: String
     let genre: String
@@ -86,7 +86,7 @@ struct Artist: Identifiable, Hashable {
     let trackIDs: [String]
 }
 
-struct Album: Identifiable, Hashable {
+nonisolated struct Album: Identifiable, Hashable {
     let id: String
     let title: String
     let artist: String
@@ -95,7 +95,7 @@ struct Album: Identifiable, Hashable {
     let trackIDs: [String]
 }
 
-enum Genre: String, CaseIterable, Identifiable {
+nonisolated enum Genre: String, CaseIterable, Identifiable {
     case pop = "Поп"
     case hipHop = "Хип-хоп"
     case rock = "Рок"
