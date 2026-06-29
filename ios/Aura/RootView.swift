@@ -2,8 +2,8 @@
 //  RootView.swift
 //  Aura
 //
-//  Liquid Glass tab bar. Home / Search / Profile are grouped, while the
-//  mini-player floats as the tab-bar bottom accessory when playback is active.
+//  Home / Search / Profile are the main tabs. The mini-player is an overlay
+//  above the tab bar so it never stretches the tab layout.
 //
 
 import SwiftUI
@@ -22,6 +22,12 @@ struct RootView: View {
             }
         }
         .tint(AuraColor.green)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if player.current != nil {
+                MiniPlayerHost { showFullPlayer = true }
+                    .padding(.bottom, 8)
+            }
+        }
         .fullScreenCover(isPresented: $showFullPlayer) {
             FullPlayerView()
         }
@@ -31,103 +37,43 @@ struct RootView: View {
 
     @available(iOS 26.0, *)
     private var modernTabs: some View {
-        Group {
-            if player.current != nil {
-                TabView {
-                    Tab(settings.t(.home), systemImage: "house.fill") {
-                        NavigationStack { HomeView() }
-                    }
-                    Tab(settings.t(.search), systemImage: "magnifyingglass", role: .search) {
-                        NavigationStack { SearchView() }
-                    }
-                    Tab(settings.t(.profile), systemImage: "person.fill") {
-                        NavigationStack { ProfileView() }
-                    }
-                }
-                .tabBarMinimizeBehavior(.onScrollDown)
-                .tabViewBottomAccessory {
-                    MiniPlayerAccessory { showFullPlayer = true }
-                }
-            } else {
-                TabView {
-                    Tab(settings.t(.home), systemImage: "house.fill") {
-                        NavigationStack { HomeView() }
-                    }
-                    Tab(settings.t(.search), systemImage: "magnifyingglass", role: .search) {
-                        NavigationStack { SearchView() }
-                    }
-                    Tab(settings.t(.profile), systemImage: "person.fill") {
-                        NavigationStack { ProfileView() }
-                    }
-                }
-                .tabBarMinimizeBehavior(.onScrollDown)
+        TabView {
+            Tab(settings.t(.home), systemImage: "house.fill") {
+                NavigationStack { HomeView() }
+            }
+            Tab(settings.t(.profile), systemImage: "person.fill") {
+                NavigationStack { ProfileView() }
+            }
+            Tab(settings.t(.search), systemImage: "magnifyingglass", role: .search) {
+                NavigationStack { SearchView() }
             }
         }
+        .tabBarMinimizeBehavior(.onScrollDown)
     }
 
     // MARK: - Fallback Tabs
 
     private var legacyTabs: some View {
-        ZStack(alignment: .bottom) {
-            TabView {
-                NavigationStack { HomeView() }
-                    .tabItem { Label(settings.t(.home), systemImage: "house.fill") }
-                NavigationStack { SearchView() }
-                    .tabItem { Label(settings.t(.search), systemImage: "magnifyingglass") }
-                NavigationStack { ProfileView() }
-                    .tabItem { Label(settings.t(.profile), systemImage: "person.fill") }
-            }
-
-            if player.current != nil {
-                MiniPlayerView { showFullPlayer = true }
-                    .padding(.bottom, 52)
-            }
+        TabView {
+            NavigationStack { HomeView() }
+                .tabItem { Label(settings.t(.home), systemImage: "house.fill") }
+            NavigationStack { ProfileView() }
+                .tabItem { Label(settings.t(.profile), systemImage: "person.fill") }
+            NavigationStack { SearchView() }
+                .tabItem { Label(settings.t(.search), systemImage: "magnifyingglass") }
         }
     }
 }
 
-/// Wrapper that renders the mini-player inside the iOS 26 bottom accessory slot.
-private struct MiniPlayerAccessory: View {
+private struct MiniPlayerHost: View {
     @ObservedObject private var player = AudioPlayerManager.shared
     let onExpand: () -> Void
 
     var body: some View {
-        if let track = player.current {
-            HStack(spacing: 12) {
-                CoverArt(imageURL: track.imageURL, initials: track.initials, colorSeed: track.colorSeed, artworkData: track.artworkData, cornerRadius: 7)
-                    .frame(width: 36, height: 36)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(track.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(AuraColor.textPrimary)
-                        .lineLimit(1)
-                    Text(track.artist)
-                        .font(.system(size: 12))
-                        .foregroundStyle(AuraColor.textSecondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 4)
-                Button {
-                    player.togglePlayPause()
-                } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(AuraColor.textPrimary)
-                        .contentTransition(.symbolEffect(.replace))
-                }
-                .buttonStyle(.plain)
-                Button {
-                    player.next()
-                } label: {
-                    Image(systemName: "forward.fill")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(AuraColor.textPrimary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 14)
-            .contentShape(Rectangle())
-            .onTapGesture { HapticManager.tap(); onExpand() }
+        if player.current != nil {
+            MiniPlayerView(onExpand: onExpand)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 10)
         } else {
             EmptyView()
         }

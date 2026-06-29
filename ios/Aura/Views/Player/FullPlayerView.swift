@@ -12,7 +12,6 @@ struct FullPlayerView: View {
     @EnvironmentObject private var settings: AppSettings
     @ObservedObject private var player = AudioPlayerManager.shared
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var isScrubbing = false
     @State private var scrubValue: Double = 0
@@ -22,89 +21,95 @@ struct FullPlayerView: View {
             ZStack {
                 backdrop
 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 18) {
-                        grabber
+                VStack(spacing: 0) {
+                    grabber
 
-                        if let track = player.current {
-                            playerContent(track: track, size: coverSize(for: geo.size))
-                                .padding(.top, 8)
-                        } else {
-                            Spacer(minLength: 260)
+                    if let track = player.current {
+                        Spacer(minLength: compactSpacing(for: geo.size) * 1.5)
+
+                        CoverArt(
+                            imageURL: track.imageURL,
+                            initials: track.initials,
+                            colorSeed: track.colorSeed,
+                            artworkData: track.artworkData,
+                            cornerRadius: 28,
+                            showInitials: true
+                        )
+                        .frame(width: coverSize(for: geo.size), height: coverSize(for: geo.size))
+                        .frame(maxWidth: .infinity)
+                        .shadow(color: Color(hex: track.colorSeed).opacity(0.45), radius: 28, y: 14)
+                        .scaleEffect(player.isPlaying ? 1.0 : 0.95)
+                        .animation(.spring(response: 0.45, dampingFraction: 0.72), value: player.isPlaying)
+                        .padding(.horizontal, 24)
+
+                        Spacer(minLength: compactSpacing(for: geo.size))
+
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(track.title)
+                                    .font(.system(size: titleFontSize(for: geo.size), weight: .heavy))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                Text(track.artist)
+                                    .font(.system(size: 17))
+                                    .foregroundStyle(.white.opacity(0.72))
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            Button {
+                                player.toggleFavorite(track)
+                            } label: {
+                                Image(systemName: player.isFavorite(track) ? "heart.fill" : "heart")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(player.isFavorite(track) ? AuraColor.green : .white)
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
                         }
+                        .padding(.horizontal, 28)
+
+                        Spacer(minLength: compactSpacing(for: geo.size) * 0.8)
+
+                        scrubber
+                            .padding(.horizontal, 24)
+
+                        Spacer(minLength: compactSpacing(for: geo.size) * 0.55)
+
+                        controls
+                            .padding(.horizontal, 20)
+
+                        Spacer(minLength: compactSpacing(for: geo.size) * 0.55)
+
+                        volumeSlider
+                            .padding(.horizontal, 28)
+
+                        Spacer(minLength: 12)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 24)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, 10)
+                .padding(.bottom, 18)
             }
         }
         .presentationDragIndicator(.hidden)
     }
 
     private func coverSize(for size: CGSize) -> CGFloat {
-        min(max(240, min(size.width - 64, 360)), size.height * 0.36)
+        min(size.width - 64, max(220, size.height * 0.34))
     }
 
-    @ViewBuilder
-    private func playerContent(track: Track, size: CGFloat) -> some View {
-        VStack(spacing: 18) {
-            CoverArt(
-                imageURL: track.imageURL,
-                initials: track.initials,
-                colorSeed: track.colorSeed,
-                artworkData: track.artworkData,
-                cornerRadius: 24,
-                showInitials: true
-            )
-            .frame(width: size, height: size)
-            .frame(maxWidth: .infinity)
-            .shadow(color: Color(hex: track.colorSeed).opacity(colorScheme == .dark ? 0.5 : 0.22), radius: 30, y: 16)
-            .scaleEffect(player.isPlaying ? 1 : 0.95)
-            .animation(.spring(response: 0.5, dampingFraction: 0.75), value: player.isPlaying)
+    private func titleFontSize(for size: CGSize) -> CGFloat {
+        size.height < 760 ? 22 : 26
+    }
 
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(track.title)
-                        .font(.system(size: 28, weight: .heavy, design: .rounded))
-                        .foregroundStyle(AuraColor.textPrimary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.75)
-                    Text(track.artist)
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(AuraColor.textSecondary)
-                        .lineLimit(1)
-                    if let detail = track.detailText, !detail.isEmpty {
-                        Text(detail)
-                            .font(.system(size: 14))
-                            .foregroundStyle(AuraColor.textSecondary)
-                            .lineLimit(3)
-                    }
-                }
-                Spacer(minLength: 8)
-                Button {
-                    player.toggleFavorite(track)
-                } label: {
-                    Image(systemName: player.isFavorite(track) ? "heart.fill" : "heart")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(player.isFavorite(track) ? AuraColor.green : AuraColor.textPrimary)
-                        .contentTransition(.symbolEffect(.replace))
-                        .frame(width: 44, height: 44)
-                }
-            }
-
-            scrubber
-
-            controls
-
-            volumeSlider
-        }
-        .padding(.top, 4)
+    private func compactSpacing(for size: CGSize) -> CGFloat {
+        size.height < 760 ? 12 : 18
     }
 
     private var backdrop: some View {
         ZStack {
-            AuraColor.background
+            Color.black
             if let track = player.current {
                 CoverArt(
                     imageURL: track.imageURL,
@@ -115,16 +120,10 @@ struct FullPlayerView: View {
                     showInitials: false
                 )
                 .scaleEffect(1.35)
-                .blur(radius: colorScheme == .dark ? 70 : 60)
-                .opacity(colorScheme == .dark ? 0.55 : 0.22)
-
-                LinearGradient(
-                    colors: colorScheme == .dark
-                    ? [.clear, .black.opacity(0.32), .black.opacity(0.82)]
-                    : [.clear, AuraColor.background.opacity(0.72), AuraColor.background],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                .blur(radius: 70)
+                .opacity(0.7)
+                LinearGradient(colors: [.clear, .black.opacity(0.5), .black],
+                               startPoint: .top, endPoint: .bottom)
             }
         }
         .ignoresSafeArea()
@@ -138,16 +137,20 @@ struct FullPlayerView: View {
             } label: {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(AuraColor.textPrimary)
+                    .foregroundStyle(.white)
                     .frame(width: 40, height: 40)
                     .auraGlass(in: .circle, interactive: true)
             }
+
             Spacer()
+
             Text(settings.t(.nowPlaying))
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(AuraColor.textSecondary)
+                .foregroundStyle(.white.opacity(0.7))
                 .textCase(.uppercase)
+
             Spacer()
+
             Menu {
                 Button { player.cycleRepeat() } label: {
                     Label(settings.t(.queue), systemImage: "repeat")
@@ -155,12 +158,13 @@ struct FullPlayerView: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(AuraColor.textPrimary)
+                    .foregroundStyle(.white)
                     .frame(width: 40, height: 40)
                     .auraGlass(in: .circle, interactive: true)
             }
         }
-        .padding(.top, 4)
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
     }
 
     private var scrubber: some View {
@@ -184,30 +188,30 @@ struct FullPlayerView: View {
                 Text(player.remainingTimeText)
             }
             .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(AuraColor.textSecondary)
+            .foregroundStyle(.white.opacity(0.6))
             .monospacedDigit()
         }
     }
 
     private var controls: some View {
-        HStack(spacing: 22) {
+        HStack(spacing: 24) {
             Button { player.toggleShuffle() } label: {
                 Image(systemName: "shuffle")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(player.isShuffle ? AuraColor.green : AuraColor.textSecondary)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(player.isShuffle ? AuraColor.green : .white.opacity(0.82))
             }
 
             Button { player.previous() } label: {
                 Image(systemName: "backward.fill")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(AuraColor.textPrimary)
+                    .font(.system(size: 25, weight: .bold))
+                    .foregroundStyle(.white)
             }
 
             Button { player.togglePlayPause() } label: {
                 Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 30, weight: .bold))
+                    .font(.system(size: 29, weight: .bold))
                     .foregroundStyle(.black)
-                    .frame(width: 76, height: 76)
+                    .frame(width: 72, height: 72)
                     .background(Circle().fill(AuraColor.green))
                     .contentTransition(.symbolEffect(.replace))
                     .shadow(color: AuraColor.green.opacity(0.45), radius: 16, y: 6)
@@ -215,35 +219,31 @@ struct FullPlayerView: View {
 
             Button { player.next() } label: {
                 Image(systemName: "forward.fill")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(AuraColor.textPrimary)
+                    .font(.system(size: 25, weight: .bold))
+                    .foregroundStyle(.white)
             }
 
             Button { player.cycleRepeat() } label: {
                 Image(systemName: player.repeatMode == .one ? "repeat.1" : "repeat")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(player.repeatMode != .off ? AuraColor.green : AuraColor.textSecondary)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(player.repeatMode != .off ? AuraColor.green : .white.opacity(0.82))
             }
         }
-        .frame(maxWidth: .infinity)
     }
 
     private var volumeSlider: some View {
         HStack(spacing: 12) {
             Image(systemName: "speaker.fill")
                 .font(.system(size: 13))
-                .foregroundStyle(AuraColor.textSecondary)
-            Slider(
-                value: Binding(
-                    get: { player.volume },
-                    set: { player.setVolume($0) }
-                ),
-                in: 0...1
-            )
-            .tint(AuraColor.green)
+                .foregroundStyle(.white.opacity(0.6))
+            Slider(value: Binding(
+                get: { player.volume },
+                set: { player.setVolume($0) }
+            ), in: 0...1)
+            .tint(.white)
             Image(systemName: "speaker.wave.3.fill")
                 .font(.system(size: 13))
-                .foregroundStyle(AuraColor.textSecondary)
+                .foregroundStyle(.white.opacity(0.6))
         }
     }
 }

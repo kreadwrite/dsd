@@ -88,7 +88,7 @@ struct HomeView: View {
                     }
                 }
 
-                Color.clear.frame(height: 150) // space for mini-player + tab bar
+                Color.clear.frame(height: 70)
             }
         }
         .scrollIndicators(.hidden)
@@ -123,33 +123,15 @@ struct PressableStyle: ButtonStyle {
 
 /// Shared ambient wallpaper background.
 struct AppBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         ZStack {
             AuraColor.background.ignoresSafeArea()
-            if colorScheme == .dark {
-                Image("dark_music_app_bg")
-                    .resizable()
-                    .scaledToFill()
-                    .opacity(0.55)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-            } else {
-                LinearGradient(
-                    colors: [AuraColor.background, AuraColor.surface.opacity(0.9), AuraColor.background],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+            Image("dark_music_app_bg")
+                .resizable()
+                .scaledToFill()
+                .opacity(0.6)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
-                Image("glowing_ribbons_ambient")
-                    .resizable()
-                    .scaledToFill()
-                    .opacity(0.18)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-            }
         }
     }
 }

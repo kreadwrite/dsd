@@ -30,7 +30,7 @@ struct FavoritesView: View {
                     .padding(.horizontal, 20)
                 }
 
-                Color.clear.frame(height: 150)
+                Color.clear.frame(height: 70)
             }
         }
         .scrollIndicators(.hidden)

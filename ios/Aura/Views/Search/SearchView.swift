@@ -30,10 +30,10 @@ final class SearchViewModel: ObservableObject {
             let remote = await JamendoService.search(q)
             if Task.isCancelled { return }
             let local = (MusicCatalog.allTracks + localTracks).filter {
-                $0.title.localizedCaseInsensitiveContains(q) ||
-                $0.artist.localizedCaseInsensitiveContains(q) ||
-                $0.genre.localizedCaseInsensitiveContains(q) ||
-                ($0.detailText?.localizedCaseInsensitiveContains(q) == true)
+                $0.title.localizedCaseInsensitiveContains(q)
+                || $0.artist.localizedCaseInsensitiveContains(q)
+                || $0.genre.localizedCaseInsensitiveContains(q)
+                || ($0.detailText?.localizedCaseInsensitiveContains(q) == true)
             }
             results = local + remote
             isSearching = false
@@ -64,19 +64,21 @@ struct SearchView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                // Search field
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(AuraColor.textSecondary)
-                        TextField(settings.t(.searchPrompt), text: $vm.query)
-                            .focused($focused)
-                            .foregroundStyle(AuraColor.textPrimary)
-                            .submitLabel(.search)
-                        .onChange(of: vm.query) { _, _ in vm.runSearch(localTracks: library.tracks) }
+                    TextField(settings.t(.searchPrompt), text: $vm.query)
+                        .focused($focused)
+                        .foregroundStyle(AuraColor.textPrimary)
+                        .submitLabel(.search)
+                        .onChange(of: vm.query) { _, _ in
+                            vm.runSearch(localTracks: library.tracks)
+                        }
                         .tint(AuraColor.green)
                     if !vm.query.isEmpty {
                         Button {
-                            vm.query = ""; vm.results = []
+                            vm.query = ""
+                            vm.results = []
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(AuraColor.textSecondary)
@@ -113,17 +115,18 @@ struct SearchView: View {
                     }
                 }
 
-                Color.clear.frame(height: 150)
+                Color.clear.frame(height: 70)
             }
         }
         .scrollIndicators(.hidden)
         .background(AppBackground())
         .navigationTitle(settings.t(.search))
         .navigationBarTitleDisplayMode(.large)
-        .onAppear { if !vm.query.isEmpty { vm.runSearch(localTracks: library.tracks) } }
-        .onChange(of: library.tracks) { _, _ in
-            if !vm.query.isEmpty {
+        .onChange(of: library.tracks.count) { _, _ in
+            if !vm.query.trimmingCharacters(in: .whitespaces).isEmpty {
                 vm.runSearch(localTracks: library.tracks)
+            } else if let genre = vm.selectedGenre {
+                vm.loadGenre(genre, localTracks: library.tracks)
             }
         }
     }

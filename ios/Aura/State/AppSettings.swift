@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import UIKit
 
 enum ThemeChoice: String, CaseIterable, Identifiable {
     case system, light, dark
@@ -32,12 +33,17 @@ final class AppSettings: ObservableObject {
     @AppStorage("reminderMinutes") var reminderMinutes: Int = 600
     /// Total listening time accumulated, in seconds.
     @AppStorage("listeningSeconds") var listeningSeconds: Int = 0
-    @AppStorage("preferredGenre") private var preferredGenreRaw: String = ""
+    @AppStorage("preferredGenreRaw") private var preferredGenreRaw: String = ""
+    @AppStorage("genreListeningData") private var genreListeningData: String = ""
     /// Stored avatar image as base64 (optional).
     @AppStorage("avatarData") private var avatarBase64: String = ""
 
     // Republish when @AppStorage changes (since these are computed wrappers).
     let objectWillChange = ObservableObjectPublisher()
+
+    init() {
+        migrateLegacyListeningDataIfNeeded()
+    }
 
     var theme: ThemeChoice {
         get { ThemeChoice(rawValue: themeRaw) ?? .dark }
@@ -66,13 +72,7 @@ final class AppSettings: ObservableObject {
 
     func t(_ key: LKey) -> String { L.t(key, language) }
 
-    /// Favorite genre derived from the most common genre in the catalogue.
-    var favoriteGenre: String {
-        let counts = Dictionary(grouping: MusicCatalog.allTracks, by: \.genre)
-            .mapValues(\.count)
-        return counts.max(by: { $0.value < $1.value })?.key ?? Genre.pop.rawValue
-    }
-
+    /// Auto-derived preferred genre once enough listening history exists.
     var preferredGenre: Genre? {
         get { Genre(rawValue: preferredGenreRaw) }
         set {
@@ -83,6 +83,13 @@ final class AppSettings: ObservableObject {
 
     var preferredGenreTitle: String {
         preferredGenre?.rawValue ?? favoriteGenre
+    }
+
+    /// Favorite genre derived from the most common genre in the catalogue.
+    var favoriteGenre: String {
+        let counts = Dictionary(grouping: MusicCatalog.allTracks, by: \.genre)
+            .mapValues(\.count)
+        return counts.max(by: { $0.value < $1.value })?.key ?? "Поп"
     }
 
     var reminderDate: Date {
@@ -101,11 +108,44 @@ final class AppSettings: ObservableObject {
         }
     }
 
-    func addListening(seconds: Int) {
+    func registerListening(seconds: Int, genre: String?) {
+        guard seconds > 0 else { return }
+        objectWillChange.send()
         listeningSeconds += seconds
+
+        if let genre, !genre.isEmpty {
+            var counts = genreListeningSeconds
+            counts[genre, default: 0] += seconds
+            genreListeningSeconds = counts
+            updatePreferredGenreIfNeeded()
+        }
     }
 
-    func setPreferredGenre(_ genre: Genre?) {
+    private var genreListeningSeconds: [String: Int] {
+        get {
+            guard let data = genreListeningData.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([String: Int].self, from: data) else {
+                return [:]
+            }
+            return decoded
+        }
+        set {
+            objectWillChange.send()
+            genreListeningData = (try? String(data: JSONEncoder().encode(newValue), encoding: .utf8)) ?? ""
+        }
+    }
+
+    private func updatePreferredGenreIfNeeded() {
+        guard listeningSeconds >= 600 else { return }
+        guard let dominant = genreListeningSeconds.max(by: { $0.value < $1.value })?.key,
+              let genre = Genre.resolve(dominant) else { return }
         preferredGenre = genre
+    }
+
+    private func migrateLegacyListeningDataIfNeeded() {
+        guard listeningSeconds >= 4_000 * 60 else { return }
+        listeningSeconds = 0
+        preferredGenreRaw = ""
+        genreListeningData = ""
     }
 }

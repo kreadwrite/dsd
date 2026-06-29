@@ -2,17 +2,103 @@
 //  LocalMusicLibrary.swift
 //  Aura
 //
+//  Imported MP3 storage inside the app sandbox.
+//
 
 import Foundation
-import AVFoundation
 import Combine
+import AVFoundation
 import UIKit
 
 @MainActor
 final class LocalMusicLibrary: ObservableObject {
+    struct PendingImport: Identifiable {
+        let id = UUID()
+        let fileURL: URL
+        let suggestedTitle: String
+        let suggestedArtist: String
+        let duration: Int
+
+        var durationText: String {
+            let minutes = duration / 60
+            let seconds = duration % 60
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+
     static let shared = LocalMusicLibrary()
 
     @Published private(set) var tracks: [Track] = []
+
+    private let fileManager = FileManager.default
+    private let directoryName = "AuraLibrary"
+    private let archiveName = "local-tracks.json"
+
+    private init() {
+        load()
+    }
+
+    var allTracks: [Track] {
+        tracks
+    }
+
+    func prepareImport(from selectedURL: URL) async throws -> PendingImport {
+        let didAccess = selectedURL.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                selectedURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let sourceStem = selectedURL.deletingPathExtension().lastPathComponent
+        let destinationURL = try copyIntoSandbox(sourceURL: selectedURL)
+        let asset = AVURLAsset(url: destinationURL)
+        let duration = Int((try await asset.load(.duration)).seconds.rounded())
+        let parts = sourceStem.components(separatedBy: " - ")
+        let suggestedArtist = parts.count > 1 ? parts.first ?? "" : ""
+        let suggestedTitle = parts.count > 1 ? parts.dropFirst().joined(separator: " - ") : sourceStem
+
+        return PendingImport(
+            fileURL: destinationURL,
+            suggestedTitle: suggestedTitle,
+            suggestedArtist: suggestedArtist,
+            duration: duration
+        )
+    }
+
+    func importPreparedTrack(
+        _ draft: PendingImport,
+        title: String,
+        artist: String,
+        genre: Genre,
+        notes: String?,
+        artworkData: Data?
+    ) async throws -> Track {
+        let track = Track(
+            id: "local_\(draft.fileURL.lastPathComponent)_\(UUID().uuidString)",
+            title: title.isEmpty ? draft.suggestedTitle : title,
+            artist: artist.isEmpty ? draft.suggestedArtist : artist,
+            genre: genre.rawValue,
+            duration: draft.duration,
+            streamURL: draft.fileURL.path,
+            imageURL: nil,
+            isLocal: true,
+            detailText: notes,
+            artworkData: artworkData,
+            initials: Self.initials(for: artist.isEmpty ? draft.suggestedArtist : artist, title: title.isEmpty ? draft.suggestedTitle : title),
+            colorSeed: Self.colorSeed(for: title.isEmpty ? draft.suggestedTitle : title, artist: artist.isEmpty ? draft.suggestedArtist : artist)
+        )
+
+        tracks.insert(track, at: 0)
+        try save()
+        return track
+    }
+
+    func track(id: String) -> Track? {
+        tracks.first { $0.id == id }
+    }
+
+    // MARK: - Persistence
 
     private struct StoredTrack: Codable {
         let id: String
@@ -21,105 +107,34 @@ final class LocalMusicLibrary: ObservableObject {
         let genre: String
         let duration: Int
         let streamURL: String
+        let imageURL: String?
+        let isLocal: Bool
+        let detailText: String?
+        let artworkData: Data?
         let initials: String
         let colorSeed: UInt
-        let detailText: String?
-        let artworkBase64: String?
-    }
-
-    private let folderURL: URL
-    private let storeURL: URL
-    private let fm = FileManager.default
-
-    private init() {
-        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fm.temporaryDirectory
-        folderURL = base.appendingPathComponent("AuraLibrary", isDirectory: true)
-        storeURL = folderURL.appendingPathComponent("local-tracks.json")
-        try? fm.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        load()
-    }
-
-    func importedTracks() -> [Track] {
-        tracks
-    }
-
-    func searchTracks(matching query: String) -> [Track] {
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return tracks }
-        return tracks.filter {
-            $0.title.localizedCaseInsensitiveContains(q) ||
-            $0.artist.localizedCaseInsensitiveContains(q) ||
-            $0.genre.localizedCaseInsensitiveContains(q) ||
-            ($0.detailText?.localizedCaseInsensitiveContains(q) == true)
-        }
-    }
-
-    func importTrack(
-        from sourceURL: URL,
-        title: String,
-        artist: String,
-        genre: Genre,
-        notes: String? = nil,
-        artworkData: Data? = nil
-    ) async throws -> Track {
-        let ext = sourceURL.pathExtension.isEmpty ? "mp3" : sourceURL.pathExtension
-        let localName = UUID().uuidString.appending(".\(ext)")
-        let destinationURL = folderURL.appendingPathComponent(localName)
-
-        if sourceURL.startAccessingSecurityScopedResource() {
-            defer { sourceURL.stopAccessingSecurityScopedResource() }
-        }
-
-        if fm.fileExists(atPath: destinationURL.path) {
-            try? fm.removeItem(at: destinationURL)
-        }
-        try fm.copyItem(at: sourceURL, to: destinationURL)
-
-        let asset = AVURLAsset(url: destinationURL)
-        let durationTime = try await asset.load(.duration)
-        let duration = max(0, Int(durationTime.seconds.rounded()))
-        let initials = Self.makeInitials(from: artist, title: title)
-        let colorSeed = Self.colorSeed(from: title + artist)
-
-        let track = Track(
-            id: "local_\(UUID().uuidString)",
-            title: title,
-            artist: artist,
-            genre: genre.rawValue,
-            duration: duration,
-            streamURL: destinationURL.path,
-            imageURL: nil,
-            initials: initials,
-            colorSeed: colorSeed,
-            isLocal: true,
-            detailText: notes?.trimmingCharacters(in: .whitespacesAndNewlines),
-            artworkData: artworkData
-        )
-
-        tracks.insert(track, at: 0)
-        save()
-        return track
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: storeURL) else { return }
         do {
+            let url = try archiveURL()
+            guard fileManager.fileExists(atPath: url.path) else { return }
+            let data = try Data(contentsOf: url)
             let stored = try JSONDecoder().decode([StoredTrack].self, from: data)
-            tracks = stored.compactMap { record in
+            tracks = stored.map {
                 Track(
-                    id: record.id,
-                    title: record.title,
-                    artist: record.artist,
-                    genre: record.genre,
-                    duration: record.duration,
-                    streamURL: record.streamURL,
-                    imageURL: nil,
-                    initials: record.initials,
-                    colorSeed: record.colorSeed,
-                    isLocal: true,
-                    detailText: record.detailText,
-                    artworkData: record.artworkBase64.flatMap { Data(base64Encoded: $0) }
+                    id: $0.id,
+                    title: $0.title,
+                    artist: $0.artist,
+                    genre: $0.genre,
+                    duration: $0.duration,
+                    streamURL: $0.streamURL,
+                    imageURL: $0.imageURL,
+                    isLocal: $0.isLocal,
+                    detailText: $0.detailText,
+                    artworkData: $0.artworkData,
+                    initials: $0.initials,
+                    colorSeed: $0.colorSeed
                 )
             }
         } catch {
@@ -127,7 +142,7 @@ final class LocalMusicLibrary: ObservableObject {
         }
     }
 
-    private func save() {
+    private func save() throws {
         let stored = tracks.map {
             StoredTrack(
                 id: $0.id,
@@ -136,31 +151,60 @@ final class LocalMusicLibrary: ObservableObject {
                 genre: $0.genre,
                 duration: $0.duration,
                 streamURL: $0.streamURL,
-                initials: $0.initials,
-                colorSeed: $0.colorSeed,
+                imageURL: $0.imageURL,
+                isLocal: $0.isLocal,
                 detailText: $0.detailText,
-                artworkBase64: $0.artworkData?.base64EncodedString()
+                artworkData: $0.artworkData,
+                initials: $0.initials,
+                colorSeed: $0.colorSeed
             )
         }
-        guard let data = try? JSONEncoder().encode(stored) else { return }
-        try? data.write(to: storeURL, options: .atomic)
+        let data = try JSONEncoder().encode(stored)
+        try data.write(to: archiveURL(), options: [.atomic])
     }
 
-    private static func makeInitials(from artist: String, title: String) -> String {
-        let seed = artist.trimmingCharacters(in: .whitespacesAndNewlines)
-        if seed.count >= 2 {
-            return String(seed.prefix(2)).uppercased()
+    private func archiveURL() throws -> URL {
+        let dir = try applicationSupportDirectory()
+        let folder = dir.appendingPathComponent(directoryName, isDirectory: true)
+        if !fileManager.fileExists(atPath: folder.path) {
+            try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         }
-        return String(title.prefix(2)).uppercased()
+        return folder.appendingPathComponent(archiveName)
     }
 
-    private static func colorSeed(from value: String) -> UInt {
-        var hash: UInt = 0x1DB954
-        for scalar in value.unicodeScalars {
-            hash = hash &* 31 &+ UInt(scalar.value)
+    private func applicationSupportDirectory() throws -> URL {
+        try fileManager.url(for: .applicationSupportDirectory,
+                            in: .userDomainMask,
+                            appropriateFor: nil,
+                            create: true)
+    }
+
+    private func copyIntoSandbox(sourceURL: URL) throws -> URL {
+        let dir = try applicationSupportDirectory()
+        let folder = dir.appendingPathComponent(directoryName, isDirectory: true)
+        if !fileManager.fileExists(atPath: folder.path) {
+            try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         }
-        let green = 0x1DB954 as UInt
-        let bright = 0x1ED760 as UInt
-        return hash.isMultiple(of: 2) ? green : bright
+
+        let uniqueName = "\(UUID().uuidString)-\(sourceURL.lastPathComponent)"
+        let destinationURL = folder.appendingPathComponent(uniqueName)
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
+        }
+        try fileManager.copyItem(at: sourceURL, to: destinationURL)
+        return destinationURL
+    }
+
+    private static func initials(for artist: String, title: String) -> String {
+        let source = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = source.isEmpty ? title : source
+        let letters = value.split(separator: " ").prefix(2).map { $0.prefix(1) }
+        let joined = letters.joined().uppercased()
+        return joined.isEmpty ? "A" : String(joined.prefix(2))
+    }
+
+    private static func colorSeed(for title: String, artist: String) -> UInt {
+        let raw = (title + artist).unicodeScalars.reduce(into: UInt(0)) { $0 = $0 &+ UInt($1.value) }
+        return raw == 0 ? 0x1DB954 : raw
     }
 }

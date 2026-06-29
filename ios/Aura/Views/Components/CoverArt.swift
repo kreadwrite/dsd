@@ -2,8 +2,8 @@
 //  CoverArt.swift
 //  Aura
 //
-//  Album / artist cover. Uses a remote image when available, otherwise a
-//  solid-colour placeholder with the artist initials (palette-only colours).
+//  Album / artist cover. Uses imported artwork first, then a remote image when
+//  available, otherwise a solid-colour placeholder with the artist initials.
 //
 
 import SwiftUI
@@ -28,8 +28,10 @@ struct CoverArt: View {
                 endPoint: .bottomTrailing
             )
 
-            if let artworkData, let uiImage = UIImage(data: artworkData) {
-                Image(uiImage: uiImage).resizable().scaledToFill()
+            if let artworkData, let image = UIImage(data: artworkData) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
             } else if let urlString = imageURL, let url = URL(string: urlString) {
                 AsyncImage(url: url) { phase in
                     switch phase {
@@ -43,6 +45,7 @@ struct CoverArt: View {
                 placeholderContent
             }
         }
+        .clipped()
         .clipShape(.rect(cornerRadius: cornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)

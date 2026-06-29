@@ -45,6 +45,9 @@ nonisolated struct JamendoService {
             duration: j.duration,
             streamURL: j.audio,
             imageURL: (j.album_image?.isEmpty == false) ? j.album_image : nil,
+            isLocal: false,
+            detailText: nil,
+            artworkData: nil,
             initials: initials,
             colorSeed: seed
         )

@@ -28,7 +28,7 @@ nonisolated enum MusicCatalog {
     private static let seeds: [Seed] = [
         Seed(artist: "MORGENSHTERN", initials: "MG", genre: .rap, color: 0x1DB954,
              titles: ["Неоновый дым", "Город не спит"]),
-        Seed(artist: "Lil Peep", initials: "LP", genre: .indie, color: 0x1ED760,
+        Seed(artist: "Lil Peep", initials: "LP", genre: .indie, color: 0x1DB954,
              titles: ["Розовые облака", "Тихий шум"]),
         Seed(artist: "Miyagi & Andy Panda", initials: "MA", genre: .hipHop, color: 0x1ED760,
              titles: ["Горный ветер", "Свет внутри"]),
@@ -37,10 +37,10 @@ nonisolated enum MusicCatalog {
         Seed(artist: "ЛСП", initials: "ЛС", genre: .pop, color: 0x1DB954,
              titles: ["Стеклянный дом", "Танцы до утра"]),
         Seed(artist: "Макс Корж", initials: "МК", genre: .pop, color: 0x1ED760,
-             titles: ["Малый повзрослел", "Свое небо"]),
-        Seed(artist: "Скриптонит", initials: "СК", genre: .rnb, color: 0x1ED760,
+             titles: ["Малый повзрослел", "Своё небо"]),
+        Seed(artist: "Скриптонит", initials: "СК", genre: .rnb, color: 0x1DB954,
              titles: ["Вечер в Алматы", "Дым и неон"]),
-        Seed(artist: "Markul", initials: "MK", genre: .hipHop, color: 0x1DB954,
+        Seed(artist: "Markul", initials: "MK", genre: .hipHop, color: 0x1ED760,
              titles: ["Над облаками", "Пустые улицы"]),
         Seed(artist: "Boulevard Depo", initials: "BD", genre: .rap, color: 0x1DB954,
              titles: ["Сапфир", "Холодный апрель"]),
@@ -48,7 +48,7 @@ nonisolated enum MusicCatalog {
              titles: ["Молодой адвокат", "Феррари мечты"]),
         Seed(artist: "Three Days Grace", initials: "TG", genre: .rock, color: 0x1DB954,
              titles: ["Animal Inside", "Breaking Silence"]),
-        Seed(artist: "Mujuice", initials: "MJ", genre: .electronic, color: 0x1DB954,
+        Seed(artist: "Mujuice", initials: "MJ", genre: .electronic, color: 0x1ED760,
              titles: ["Метро в полночь", "Электрический сон"]),
     ]
 
@@ -67,6 +67,9 @@ nonisolated enum MusicCatalog {
                         duration: 150 + (index * 13) % 120,
                         streamURL: sample(index),
                         imageURL: nil,
+                        isLocal: false,
+                        detailText: nil,
+                        artworkData: nil,
                         initials: seed.initials,
                         colorSeed: seed.color
                     )

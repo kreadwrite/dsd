@@ -3,11 +3,12 @@
 //  Aura
 //
 
+import Foundation
 import SwiftUI
 import UIKit
 
-/// A playable track. Cover is either a remote image URL, local artwork data,
-/// or a generated solid-colour placeholder built from the artist initials.
+/// A playable track. Cover is either a remote image URL (Jamendo) or a
+/// generated solid-colour placeholder built from the artist initials.
 nonisolated struct Track: Identifiable, Hashable, Codable {
     let id: String
     let title: String
@@ -15,54 +16,20 @@ nonisolated struct Track: Identifiable, Hashable, Codable {
     let genre: String
     /// Duration in seconds.
     let duration: Int
-    /// Streamable audio URL or local file URL string.
+    /// Streamable audio URL (Jamendo or royalty-free sample).
     let streamURL: String
     /// Optional remote cover image URL.
     let imageURL: String?
+    /// Set when the track is imported locally from Files.
+    let isLocal: Bool
+    /// Optional notes/description provided by the user.
+    let detailText: String?
+    /// Optional imported artwork stored in the sandbox.
+    let artworkData: Data?
     /// Two-letter initials used for the placeholder cover.
     let initials: String
     /// Hex colour seed for the placeholder cover gradient.
     let colorSeed: UInt
-    /// Marks tracks imported by the user.
-    let isLocal: Bool
-    /// Optional extra text/notes for local tracks.
-    let detailText: String?
-    /// Optional inline cover art for local tracks.
-    let artworkData: Data?
-
-    init(
-        id: String,
-        title: String,
-        artist: String,
-        genre: String,
-        duration: Int,
-        streamURL: String,
-        imageURL: String?,
-        initials: String,
-        colorSeed: UInt,
-        isLocal: Bool = false,
-        detailText: String? = nil,
-        artworkData: Data? = nil
-    ) {
-        self.id = id
-        self.title = title
-        self.artist = artist
-        self.genre = genre
-        self.duration = duration
-        self.streamURL = streamURL
-        self.imageURL = imageURL
-        self.initials = initials
-        self.colorSeed = colorSeed
-        self.isLocal = isLocal
-        self.detailText = detailText
-        self.artworkData = artworkData
-    }
-
-    var durationText: String {
-        let m = duration / 60
-        let s = duration % 60
-        return String(format: "%d:%02d", m, s)
-    }
 
     var playbackURL: URL? {
         if isLocal {
@@ -74,6 +41,12 @@ nonisolated struct Track: Identifiable, Hashable, Codable {
     var artworkImage: UIImage? {
         guard let artworkData else { return nil }
         return UIImage(data: artworkData)
+    }
+
+    var durationText: String {
+        let m = duration / 60
+        let s = duration % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 
@@ -95,7 +68,7 @@ nonisolated struct Album: Identifiable, Hashable {
     let trackIDs: [String]
 }
 
-nonisolated enum Genre: String, CaseIterable, Identifiable {
+enum Genre: String, CaseIterable, Identifiable {
     case pop = "Поп"
     case hipHop = "Хип-хоп"
     case rock = "Рок"
@@ -120,10 +93,30 @@ nonisolated enum Genre: String, CaseIterable, Identifiable {
         }
     }
 
-    var tint: Color {
+    var aliases: [String] {
         switch self {
-        case .pop, .rap, .indie, .lofi: return AuraColor.green
-        case .hipHop, .rock, .electronic, .rnb: return AuraColor.greenBright
+        case .pop: return [rawValue, "pop", "popular"]
+        case .hipHop: return [rawValue, "hip hop", "hiphop", "hip-hop"]
+        case .rock: return [rawValue, "rock"]
+        case .rap: return [rawValue, "rap", "hip hop"]
+        case .electronic: return [rawValue, "electronic", "edm", "dance"]
+        case .rnb: return [rawValue, "r&b", "rnb"]
+        case .indie: return [rawValue, "indie"]
+        case .lofi: return [rawValue, "lofi", "lo-fi"]
         }
+    }
+
+    static func resolve(_ value: String) -> Genre? {
+        let normalized = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return allCases.first { genre in
+            genre.aliases.contains { $0.lowercased() == normalized }
+        }
+    }
+
+    /// Each genre maps to the green palette.
+    var tint: Color {
+        AuraColor.green
     }
 }

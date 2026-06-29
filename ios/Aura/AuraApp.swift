@@ -11,6 +11,7 @@ struct AuraApp: App {
     @StateObject private var player = AudioPlayerManager.shared
     @StateObject private var library = LocalMusicLibrary.shared
     @State private var showOnboarding = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -37,6 +38,11 @@ struct AuraApp: App {
                     minutes: settings.reminderMinutes,
                     enabled: settings.notificationsEnabled
                 )
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    player.reactivateSession()
+                }
             }
         }
     }
