@@ -88,6 +88,7 @@ struct MiniPlayerView: View {
             }
             .padding(.horizontal, 12)
             .transition(.move(edge: .bottom).combined(with: .opacity))
+            .animation(.easeInOut(duration: 0.32), value: player.current?.id)
         }
     }
 }

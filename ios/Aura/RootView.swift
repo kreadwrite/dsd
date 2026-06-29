@@ -14,6 +14,7 @@ struct RootView: View {
             }
         }
         .tint(AuraColor.green)
+        .animation(.easeInOut(duration: 0.32), value: player.current?.id)
         .fullScreenCover(isPresented: $showFullPlayer) {
             FullPlayerView()
         }
@@ -120,6 +121,7 @@ private struct MiniPlayerAccessory: View {
             .padding(.horizontal, 14)
             .contentShape(Rectangle())
             .onTapGesture { HapticManager.tap(); onExpand() }
+            .animation(.easeInOut(duration: 0.32), value: player.current?.id)
         } else {
             EmptyView()
         }
